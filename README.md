@@ -65,3 +65,116 @@ Theo quy tắc chung, mọi thư mục đều nằm dưới thư mục root thì
 Bạn có thể đọc thêm về cấu trúc của hệ thống tệp tin trong Linux bằng lệnh 'man hier'.
 Trên đây là cái nhìn tổng quan về hệ thống tệp tin trên hệ điều hành Linux. Còn tùy thuộc vào các bản phân phối, cấu trúc này có thể khác nhau chút ít như thêm hay bớt một số thư mục.
 Đến đây bạn sẽ thấy hệ điều hành Linux tổ chức hệ thống thư mục và tệp tin một cách thống nhất. Một ứng dụng gồm nhiều thành phần khác nhau sẽ được lưu giữ ở nhiều thư mục riêng biệt. Chẳng hạn tệp tin binary thì lưu trong /usr/local/bin trong khi dữ liệu lại lưu trong /usr/share/*.
+
+
+We’ll show you how to speed up VestaCP on CentOS 7. Vesta Control Panel is a simple and easy to use open source hosting control panel. It has a simple and clean interface and lots of useful features that will help you to host your websites on your VPS. Vesta Control Panel currently can be installed on RHEL 5, RHEL 6, CentOS 5, CentOS 6, CentOS 7, Debian 7, Debian 8, Ubuntu 12.04, Ubuntu 12.10, Ubuntu 13.04, Ubuntu 13.10, Ubuntu 14.04 and Ubuntu 16.04 operating systems. Today we are going to learn how to speed up VestaCP on a CentOS 7 VPS.
+
+
+1. Upgrade PHP
+First make sure the system is up to date:
+
+# yum update
+Now let’s enable the remi-php70 repository so we can upgrade VestaCP to PHP 7:
+
+# yum-config-manager --enable remi-php70
+Update the system again, this command should upgrade all PHP packages to PHP 7:
+
+# yum update
+And then restart the php-fpm service:
+
+# systemctl restart php-fpm
+2. Install Opcache
+Installing Opcache is pretty easy, just run the following command:
+
+# yum install php-opcache
+Restart the php-fpm service again:
+
+# systemctl restart php-fpm
+Restart Nginx as well:
+
+# systemctl restart nginx
+Now you should check if Opcache is enabled by running the following command:
+
+php -i | grep opcache.enable
+If Opcache is enabled you should see something like the following output:
+
+opcache.enable => On => On
+3. Upgrade MariaDB
+First make a backup from all of your databases.
+
+Instead of the conventional mysqldump utility you can use the VestaCP CLI to generate a backup for all of the users on your system, if you want to do that just run:
+
+# v-backup-users
+In case you need to restore the backup, first obtain the backup file name by typing in:
+
+# v-list-user-backups <username>
+And then by executing the following command you can restore all databases for a specific user:
+
+# v-restore-user <username> <backup_name> no no no <username> no no no
+Note: Replace <username> for the username you want to restore the databases for and <backup_name> for the name of the backup obtained by the v-list-user-backups command.
+
+Now, let’s get to upgrading MariaDB finally, start by removing the old MariaDB version:
+
+# yum remove mariadb mariadb-server
+Add the repository for MariaDB 10 by creating the repo file with nano and then paste the text below:
+
+# nano /etc/yum.repos.d/MariaDB.repo
+
+# Used to install MariaDB 10 instead of default 5.5
+# http://mariadb.org/mariadb/repositories/
+[mariadb]
+name = MariaDB
+baseurl = https://yum.mariadb.org/10.2/centos7-amd64/
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+Now update the system again:
+
+# yum update
+And then install MariaDB 10:
+
+# yum install mariadb mariadb-server
+After the installation has finished, start MariaDB by running the following command:
+
+# systemctl start mariadb
+Then enable the MariaDB service on boot:
+
+# systemctl enable mariadb.service
+4. Install Redis
+Redis is an in-memory data structure store primarily used as a database and cache.
+You can get a huge speed benefit from configuring Redis to cache your pages or to cache your database rows.
+
+You can install Redis by typing in the following command:
+
+# yum install redis
+After the yum package manager has finished installing Redis, type in the following command to start Redis:
+
+# systemctl start redis
+Now enable the Redis service to start on boot:
+
+# systemctl enable redis.service
+5. Configuring WordPress
+If you use WordPress for your sites then it would be quite beneficial to install Redis as a caching system for WordPress.
+We are going to need the Phpredis extension in order to configure WordPress to use Redis, first install this package:
+
+# yum install php-devel
+Then install the Phpredis extension using this command:
+
+# pecl install redis
+Press enter when the following message comes up:
+
+enable igbinary serializer support? [no]
+After PECL has finished installing Phpredis, open the php.ini file and add the following line at the bottom:
+
+# nano /etc/php.ini
+
+extension=redis.so
+Restart php-fpm in order to make the changes effective:
+
+# systemctl restart php-fpm
+Now log in to your WordPress backend and install the plugin W3 Total Cache and activate it.In the plugin settings for W3 Total Cache select Redis as page cache and database cache then check the Enable checkbox for both options and click on the Save all settings button.When finished restart Nginx:
+
+# systemctl restart nginx
+Then turn on the Redis monitor by typing in the following command:
+
+redis-cli monitor
+Now using your browser navigate to your WordPress page, if Redis is working you should see output similar to this:
